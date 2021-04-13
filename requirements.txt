@@ -3,3 +3,5 @@ numpy
 tqdm
 matplotlib
 tensorboardx
+opencv-contrib-python
+albumentations

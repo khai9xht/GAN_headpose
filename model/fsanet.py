@@ -181,7 +181,7 @@ class ScoringFunction(nn.Module):
 
 
 class FineGrainedStructureMapping(nn.Module):
-    #                      64          21        5    
+    #                      64          21        5
     def __init__(self,in_channels,num_primcaps,mdim,var=False):
         super(FineGrainedStructureMapping, self).__init__()
 
@@ -191,7 +191,7 @@ class FineGrainedStructureMapping(nn.Module):
 
         self.attention_maps = ScoringFunction(in_channels,var)
         #                       64       64*3*5
-        self.fm = nn.Linear(self.n//3,self.n*self.m) #this is used for calculating Mk in paper 
+        self.fm = nn.Linear(self.n//3,self.n*self.m) #this is used for calculating Mk in paper
         #                    64*3       7*5
         self.fc = nn.Linear(self.n,self.n_new*self.m) #this is used for calculating C in paper
 
@@ -470,7 +470,7 @@ class SSRLayerCMU(nn.Module):
 
         pred = (a + b + c) * V_tensor
 
-        
+
         return pred
 
 class FSANet(nn.Module):
@@ -483,7 +483,7 @@ class FSANet(nn.Module):
         routings = 2
         mdim = 5
 
-        self.msms = MultiStreamMultiStage(3) #channels: rgb 
+        self.msms = MultiStreamMultiStage(3) #channels: rgb
         self.fgsm = FineGrainedStructureMapping(64,num_primcaps,mdim,var) #channels: feature maps
         self.caps_layer = CapsuleLayer1d(num_primcaps,primcaps_dim,num_out_capsule,out_capsule_dim,routings)
         self.eaf = ExtractAggregatedFeatures(num_out_capsule)
