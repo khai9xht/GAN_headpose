@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+from collections import OrderedDict
 
 def base_layer(filter_in, filter_out, relu_alpha=None, bn_momentum=None):
     base_dict = OrderedDict([
@@ -8,15 +8,15 @@ def base_layer(filter_in, filter_out, relu_alpha=None, bn_momentum=None):
     ])
     if relu_alpha is not None:
         base_dict.update({
-            'relu': nn.LeakyReLU(alpha=relu_alpha)
+            'relu': nn.LeakyReLU(negative_slope=relu_alpha)
         })
     if bn_momentum is not None:
         base_dict.update({
-            'bn': nn.BatchNorm2d(momentum=bn_momentum)
+            'bn': nn.BatchNorm2d(filter_out, momentum=bn_momentum)
         })
     return nn.Sequential(base_dict)
 
-class Generator(nn.modules):
+class Generator(nn.Module):
     def __init__(self, latent_dim, img_shape):
         super(Generator, self).__init__()
         self.latent_dim = latent_dim
@@ -29,19 +29,19 @@ class Generator(nn.modules):
             base_layer(1024, 2048, 0.2, 0.8),
             nn.Linear(2048, flatten_img)
         ])
-    
-    def forward(x):
+
+    def forward(self, x):
         def _run(sub_net, input):
             for layer in sub_net:
                 input = layer(input)
             return input
-        
-        x = _run(x)
+
+        x = _run(self,layers, x)
         return x
 
-class Discriminator(nn.modules):
+class Discriminator(nn.Module):
     def __init__(self, img_shape):
-        super(self, Discriminator).__init__()
+        super(Discriminator, self).__init__()
         self.img_shape = img_shape
         flatten_img = self.img_shape[0] * self.img_shape[1] * self.img_shape[2]
         self.layers = nn.ModuleList([
@@ -51,13 +51,13 @@ class Discriminator(nn.modules):
             nn.Linear(256, 1)
         ])
 
-    def forward(x):
+    def forward(self, x):
         def _run(sub_net, input):
             for layer in sub_net:
                 input = layer(input)
             return input
-        
-        x = _run(x)
+
+        x = _run(self.layers, x)
         return x
 
 

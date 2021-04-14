@@ -106,3 +106,6 @@ def ConvertVectorToAngle(Rotate_matrix):
         y = -np.pi + y1
 
     return y, p, r # yaw, pitch, roll
+
+def resize(image, output_shape):
+    pass

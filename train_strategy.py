@@ -3,7 +3,7 @@ from tqdm import tqdm
 def train_d(dis, criterion, d_optim, imgs, labels):
     d_optim.zero_grad()
 
-    pred = dis(imgs)
+    pred = dis(imgs.float())
     loss = criterion(pred, labels)
 
     d_optim.step()
@@ -13,7 +13,7 @@ def train_d(dis, criterion, d_optim, imgs, labels):
 def train_g(dis, gen, g_optim, criterion, FalseData, falseLabel):
     g_optim.zero_grad()
     gen_img = gen(FalseData)
-    falsePred = dis(gen_img)
+    falsePred = dis(gen_img.float())
     loss = criterion(falsePred, falseLabel)
     g_optim.step()
     return loss
@@ -21,13 +21,13 @@ def train_g(dis, gen, g_optim, criterion, FalseData, falseLabel):
 
 def train_pose(hp_net, imgs, labels, criterion, optim):
     optim.zero_grad()
-    pred = hp_net(imgs)
+    pred = hp_net(imgs.float())
     loss = criterion(pred, labels)
     optim.step()
     return loss
 
 
-def train_st1(gen, dis, hp_net, dataloaders,optims, criterions, schedulers, epochs):
+def train_st1(gen, dis, hp_net, dataloaders, optims, criterions, schedulers, epochs):
     g_optim, d_optim, h_optim = optims
     gan_loss, hp_loss = criterions
     g_ched, d_sched, h_sched = schedulers
@@ -43,12 +43,13 @@ def train_st1(gen, dis, hp_net, dataloaders,optims, criterions, schedulers, epoc
 
         GAN_total_loss = 0
         for iteration, batch in enumerate(Rdataloader):
-            real_imgs, real_labels = batch
+            real_imgs, real_labels = batch[0], batch[1]
+            real_imgs = real_imgs.view((real_imgs.size()[0], -1))
             loss = train_d(dis, gan_loss, d_optim, real_imgs, real_labels)
             GAN_total_loss += loss
 
         for iteration, batch in enumerate(Fdataloader):
-            fake_vectors, fake_labels = batch
+            fake_vectors, fake_labels = batch[0], batch[1]
             fake_imgs = gen(fake_vectors)
             loss = train_d(dis, gan_loss, d_optim, fake_imgs, fake_labels)
             GAN_total_loss += loss
@@ -65,18 +66,20 @@ def train_st1(gen, dis, hp_net, dataloaders,optims, criterions, schedulers, epoc
 
         GAN_total_loss = 0
         for iteration, batch in enumerate(Fdataloader):
-            fake_vectors, fake_labels = batch
+            fake_vectors, fake_labels = batch[0], batch[1]
             fake_imgs = gen(fake_vectors)
             loss = train_d(dis, gan_loss, d_optim, fake_imgs, fake_labels)
             GAN_total_loss += loss
 
         GAN_total_loss.backward()
+        g_optim.step()
+        g_ched.step()
 
 
         # Train head pose model
         HP_total_loss = 0
         for iteration, batch in enumerate(HPdataloader):
-            real_imgs, real_labels = batch
+            real_imgs, real_labels = batch[0], batch[1]
             loss = train_pose(hp_net, real_imgs, real_labels, hp_loss, h_optim)
             HP_total_loss += loss
 
@@ -99,12 +102,12 @@ def train_st2(gen, dis, hp_net, dataloaders,optims, criterions, schedulers, epoc
 
         total_loss = 0
         for iteration, batch in enumerate(Rdataloader):
-            real_imgs, real_labels = batch
+            real_imgs, real_labels = batch[0], batch[1]
             loss = train_d(dis, gan_loss, d_optim, real_imgs, real_labels)
             total_loss += loss
 
         for iteration, batch in enumerate(Fdataloader):
-            fake_vectors, fake_labels = batch
+            fake_vectors, fake_labels = batch[0], batch[1]
             fake_imgs = gen(fake_vectors)
             loss = train_d(dis, gan_loss, d_optim, fake_imgs, fake_labels)
             total_loss += loss
@@ -123,7 +126,7 @@ def train_st2(gen, dis, hp_net, dataloaders,optims, criterions, schedulers, epoc
 
         total_loss = 0
         for iteration, batch in enumerate(Fdataloader):
-            fake_vectors, fake_labels = batch
+            fake_vectors, fake_labels = batch[0], batch[1]
             fake_imgs = gen(fake_vectors)
             loss = train_d(dis, gan_loss, d_optim, fake_imgs, fake_labels)
             total_loss += loss
@@ -140,7 +143,7 @@ def train_st2(gen, dis, hp_net, dataloaders,optims, criterions, schedulers, epoc
 
         HP_total_loss = 0
         for iteration, batch in enumerate(HPdataloader):
-            real_imgs, real_labels = batch
+            real_imgs, real_labels = batch[0], batch[1]
             loss = train_pose(hp_net, real_imgs, real_labels, hp_loss, h_optim)
             HP_total_loss += loss
 
