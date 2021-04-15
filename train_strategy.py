@@ -1,11 +1,11 @@
 from tqdm import tqdm
+import torch
+from utils import tensor_convertListAngleToVector
 
 def train_d(dis, criterion, d_optim, imgs, labels):
     d_optim.zero_grad()
-
     pred = dis(imgs.float())
     loss = criterion(pred, labels)
-
     d_optim.step()
     return loss
 
@@ -13,7 +13,7 @@ def train_d(dis, criterion, d_optim, imgs, labels):
 def train_g(dis, gen, g_optim, criterion, FalseData, falseLabel):
     g_optim.zero_grad()
     gen_img = gen(FalseData)
-    falsePred = dis(gen_img.float())
+    falsePred = dis(gen_img)
     loss = criterion(falsePred, falseLabel)
     g_optim.step()
     return loss
@@ -21,7 +21,7 @@ def train_g(dis, gen, g_optim, criterion, FalseData, falseLabel):
 
 def train_pose(hp_net, imgs, labels, criterion, optim):
     optim.zero_grad()
-    pred = hp_net(imgs.float())
+    pred = hp_net(imgs)
     loss = criterion(pred, labels)
     optim.step()
     return loss
@@ -30,32 +30,33 @@ def train_pose(hp_net, imgs, labels, criterion, optim):
 def train_st1(gen, dis, hp_net, dataloaders, optims, criterions, schedulers, epochs):
     g_optim, d_optim, h_optim = optims
     gan_loss, hp_loss = criterions
-    g_ched, d_sched, h_sched = schedulers
+    g_sched, d_sched, h_sched = schedulers
     Fdataloader, Rdataloader, HPdataloader = dataloaders
 
-    for epoch in tqdm(range(epochs)):
+    epoch = 0
+    with tqdm(total=epochs, desc=f"Epoch {epoch + 1}/{epochs}", postfix=dict, mininterval=0.3) as pbar:
 
         # Train discriminator model
         for param in gen.parameters():
             param.requires_grad = False
         for param in dis.parameters():
             param.requires_grad = True
-
-        GAN_total_loss = 0
+        
+        Gan_total_loss = []
         for iteration, batch in enumerate(Rdataloader):
             real_imgs, real_labels = batch[0], batch[1]
             real_imgs = real_imgs.view((real_imgs.size()[0], -1))
-            loss = train_d(dis, gan_loss, d_optim, real_imgs, real_labels)
-            GAN_total_loss += loss
+            d_loss = train_d(dis, gan_loss, d_optim, real_imgs, real_labels)
+            Gan_total_loss.append(d_loss)
 
         for iteration, batch in enumerate(Fdataloader):
             fake_vectors, fake_labels = batch[0], batch[1]
             fake_imgs = gen(fake_vectors)
-            loss = train_d(dis, gan_loss, d_optim, fake_imgs, fake_labels)
-            GAN_total_loss += loss
+            g_loss = train_d(dis, gan_loss, d_optim, fake_imgs, fake_labels)
+            Gan_total_loss.append(g_loss)
 
-        GAN_total_loss.forward()
-        d_sched.step()
+        # Gan_total_loss = sum(Gan_total_loss)
+        # Gan_total_loss.backward()
 
 
         # Train generator model
@@ -64,56 +65,59 @@ def train_st1(gen, dis, hp_net, dataloaders, optims, criterions, schedulers, epo
         for param in dis.parameters():
             param.requires_grad = False
 
-        GAN_total_loss = 0
         for iteration, batch in enumerate(Fdataloader):
             fake_vectors, fake_labels = batch[0], batch[1]
             fake_imgs = gen(fake_vectors)
-            loss = train_d(dis, gan_loss, d_optim, fake_imgs, fake_labels)
-            GAN_total_loss += loss
+            g_loss = train_d(dis, gan_loss, d_optim, fake_imgs, fake_labels)
+            Gan_total_loss.append(g_loss)
 
-        GAN_total_loss.backward()
-        g_optim.step()
-        g_ched.step()
+        Gan_total_loss = sum(Gan_total_loss)
+        Gan_total_loss.backward()
 
 
         # Train head pose model
-        HP_total_loss = 0
+        HP_total_loss = []
         for iteration, batch in enumerate(HPdataloader):
             real_imgs, real_labels = batch[0], batch[1]
-            loss = train_pose(hp_net, real_imgs, real_labels, hp_loss, h_optim)
-            HP_total_loss += loss
+            h_loss = train_pose(hp_net, real_imgs, real_labels, hp_loss, h_optim)
+            HP_total_loss.append(h_loss)
 
+        HP_total_loss = sum(HP_total_loss)
         HP_total_loss.backward()
+
+        g_sched.step()
+        d_sched.step()
         h_sched.step()
 
 def train_st2(gen, dis, hp_net, dataloaders,optims, criterions, schedulers, epochs):
     g_optim, d_optim, h_optim = optims
     gan_loss, hp_loss = criterions
-    g_ched, d_sched, h_sched = schedulers
+    g_sched, d_sched, h_sched = schedulers
     Fdataloader, Rdataloader, HPdataloader = dataloaders
 
-    for epoch in tqdm(range(epochs)):
+    epoch = 0
+    with tqdm(total=epochs, desc=f"Epoch {epoch + 1}/{epochs}", postfix=dict, mininterval=0.3) as pbar:
 
         # Train discriminator model
         for param in gen.parameters():
             param.requires_grad = False
         for param in dis.parameters():
             param.requires_grad = True
+        for param in hp_net.parameters():
+            param.requires_grad = False
 
-        total_loss = 0
+        total_loss = []
         for iteration, batch in enumerate(Rdataloader):
             real_imgs, real_labels = batch[0], batch[1]
-            loss = train_d(dis, gan_loss, d_optim, real_imgs, real_labels)
-            total_loss += loss
+            real_imgs = real_imgs.view((real_imgs.size()[0], -1))
+            d_loss = train_d(dis, gan_loss, d_optim, real_imgs, real_labels)
+            total_loss.append(d_loss)
 
         for iteration, batch in enumerate(Fdataloader):
             fake_vectors, fake_labels = batch[0], batch[1]
             fake_imgs = gen(fake_vectors)
-            loss = train_d(dis, gan_loss, d_optim, fake_imgs, fake_labels)
-            total_loss += loss
-
-        total_loss.forward()
-        d_sched.step()
+            g_loss = train_d(dis, gan_loss, d_optim, fake_imgs, fake_labels)
+            total_loss.append(g_loss)
 
 
         # Train generator model
@@ -124,29 +128,35 @@ def train_st2(gen, dis, hp_net, dataloaders,optims, criterions, schedulers, epoc
         for param in hp_net.parameters():
             param.requires_grad = False
 
-        total_loss = 0
+
         for iteration, batch in enumerate(Fdataloader):
             fake_vectors, fake_labels = batch[0], batch[1]
             fake_imgs = gen(fake_vectors)
-            loss = train_d(dis, gan_loss, d_optim, fake_imgs, fake_labels)
-            total_loss += loss
-            fake_imgs = fake_imgs.view(gen.img_shape)
+            g_loss = train_d(dis, gan_loss, d_optim, fake_imgs, fake_labels)
+            total_loss.append(g_loss)
+            fake_imgs = fake_imgs.view(64, 3, 64, 64).contiguous()
             pred_pose = hp_net(fake_imgs)
-            total_loss += hp_loss(pred_pose, fake_vectors)
-
-        total_loss.backward()
+            rotateMatrixs = tensor_convertListAngleToVector(pred_pose[:, 0], pred_pose[:, 1], pred_pose[:, 2])
+            total_loss.append(hp_loss(rotateMatrixs, fake_vectors))
 
 
         # Train Head pose model
+        for param in gen.parameters():
+            param.requires_grad = False
+        for param in dis.parameters():
+            param.requires_grad = False
         for param in hp_net.parameters():
             param.requires_grad = True
 
-        HP_total_loss = 0
         for iteration, batch in enumerate(HPdataloader):
             real_imgs, real_labels = batch[0], batch[1]
-            loss = train_pose(hp_net, real_imgs, real_labels, hp_loss, h_optim)
-            HP_total_loss += loss
+            h_loss = train_pose(hp_net, real_imgs, real_labels, hp_loss, h_optim)
+            total_loss.append(h_loss)
 
-        HP_total_loss.backward()
+        total_loss = sum(total_loss)
+        total_loss.backward()
+
+        g_sched.step()
+        d_sched.step()
         h_sched.step()
 

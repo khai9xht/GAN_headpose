@@ -12,7 +12,7 @@ def base_layer(filter_in, filter_out, relu_alpha=None, bn_momentum=None):
         })
     if bn_momentum is not None:
         base_dict.update({
-            'bn': nn.BatchNorm2d(filter_out, momentum=bn_momentum)
+            'bn': nn.BatchNorm1d(filter_out, momentum=bn_momentum)
         })
     return nn.Sequential(base_dict)
 
@@ -36,7 +36,7 @@ class Generator(nn.Module):
                 input = layer(input)
             return input
 
-        x = _run(self,layers, x)
+        x = _run(self.layers, x)
         return x
 
 class Discriminator(nn.Module):

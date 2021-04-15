@@ -16,24 +16,23 @@ class BIWIDataset(Dataset):
         self.input_shape = input_shape
 
     def __len__(self):
-        return len(self.lines)
+        return len(self.lines) // 100
 
     def __getitem__(self,idx):
         line = self.lines[idx]
         line = line.strip().split(' ', 1)
-        image_path = line[0]
+        image_path = line[0].replace('hpdb/', '/content/data/hpdb')
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
         bbox_attr = line[1].split(' ')
         bbox_attr = np.array([float(x) for x in bbox_attr], dtype=np.float32)
         xmin, ymin, xmax, ymax = bbox_attr[:4]
-        face_img = image[ymin:ymax, xmin:xmax]
-        face_img = cv2.resize(face_img, self.input_shape[:2])/255.0
-        face_img = torch.from_numpy(face_img)
+        face_img = image[int(ymin):int(ymax), int(xmin):int(xmax)]
+        face_img = cv2.resize(face_img, tuple(self.input_shape[:2]))/255.0
+        face_img = np.transpose(face_img, (2, 0, 1))
+        face_img = torch.from_numpy(face_img).type(torch.FloatTensor)
 
-        yaw, pitch, roll = bbox_attr[4:]
-        rotateMatrix = convertAngleToVector(yaw, pitch, roll)
-        rotateMatrix = torch.from_numpy(rotateMatrix)
-        return face_img, rotateMatrix
+        label = torch.from_numpy(bbox_attr[4:]).type(torch.FloatTensor)
+        return face_img, label
 

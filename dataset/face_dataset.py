@@ -26,13 +26,13 @@ class WLPDataset(Dataset):
         self.input_shape = input_shape
 
     def __len__(self):
-        return len(self.lines)
+        return len(self.lines) // 200
 
 
     def __getitem__(self,idx):
         line = self.lines[idx]
         line = line.strip().split(' ', 1)
-        img_path = line[0].replace("/content/data/data/", "data/300W_LP_AFLW2000/")
+        img_path = line[0] #.replace("/content/data/data/", "data/300W_LP_AFLW2000/")
         bbox_attr = line[1].split(' ')
         bbox_attr = [float(x) for x in bbox_attr]
         xmin, ymin, xmax, ymax = bbox_attr[:4]
@@ -41,9 +41,9 @@ class WLPDataset(Dataset):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image = image[int(ymin):int(ymax), int(xmin):int(xmax)]
         image = cv2.resize(image, tuple(self.input_shape[:2]))/255.0
-        image = torch.from_numpy(image)
+        image = torch.from_numpy(image).type(torch.FloatTensor)
 
-        label = self.labels[idx]
+        label = torch.from_numpy(self.labels[idx]).type(torch.FloatTensor)
 
         return image, label
 

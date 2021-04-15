@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from dataset import BIWIDataset, FakeDataset, WLPDataset
 
 print("Initialize models")
-gen = Generator(CONFIG["vector dims"], CONFIG["image shape"])
+gen = Generator(CONFIG["vector dims"]*3, CONFIG["image shape"])
 dis = Discriminator(CONFIG["image shape"])
 hp_net = FSANet()
 print("Initialize models successfully")
@@ -48,8 +48,8 @@ hp_dataloader = DataLoader(hp_dataset, batch_size=CONFIG["batch size"], num_work
 dataloaders = [fake_dataloader, face_dataloader, hp_dataloader]
 print("initialize dataloaders successfully")
 
-print("Start training in stage 1")
-train_st1(gen, dis, hp_net, dataloaders, optims, criterions, scheds, CONFIG["epochs in st1"])
+# print("Start training in stage 1")
+# train_st1(gen, dis, hp_net, dataloaders, optims, criterions, scheds, CONFIG["epochs in st1"])
 
 print("Start training in stage 2")
 train_st2(gen, dis, hp_net, dataloaders, optims, criterions, scheds, CONFIG["epochs in st2"])
